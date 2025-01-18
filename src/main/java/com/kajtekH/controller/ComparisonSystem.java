@@ -5,6 +5,7 @@ import com.kajtekH.model.InputFile;
 import com.kajtekH.model.OutputFile;
 import com.kajtekH.service.DiffMatchPatchMethod;
 
+import java.io.File;
 import java.io.IOException;
 
 public class ComparisonSystem {
@@ -35,5 +36,13 @@ public class ComparisonSystem {
 
     public Patch<String> getDifferences() {
         return diffMatchPatchMethod.getDifference();
+    }
+
+    public InputFile getInputFile1() {
+        return inputFile1;
+    }
+
+    public InputFile getInputFile2() {
+        return inputFile2;
     }
 }

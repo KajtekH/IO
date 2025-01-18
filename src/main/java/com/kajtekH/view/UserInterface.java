@@ -4,15 +4,17 @@ import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.Patch;
 import com.kajtekH.controller.ComparisonSystem;
 import com.kajtekH.model.InputFile;
+import com.kajtekH.model.OutputFile;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import java.util.List;
+import java.util.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 public class UserInterface extends JFrame {
     private final JTextField filePath1;
@@ -20,9 +22,11 @@ public class UserInterface extends JFrame {
     private final JTextArea fileContent1;
     private final JTextArea fileContent2;
     private final ComparisonSystem comparisonSystem;
+    private final List<String> mergedContent;
 
     public UserInterface() {
         comparisonSystem = new ComparisonSystem();
+        mergedContent = new ArrayList<>();
         setTitle("File Comparer");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -107,6 +111,16 @@ public class UserInterface extends JFrame {
                 comparisonSystem.compareFiles();
                 Patch<String> patch = comparisonSystem.getDifferences();
 
+                List<String> lines1 = java.nio.file.Files.readAllLines(
+                        java.nio.file.Path.of(comparisonSystem.getInputFile1().getPath())
+                );
+                List<String> lines2 = java.nio.file.Files.readAllLines(
+                        java.nio.file.Path.of(comparisonSystem.getInputFile2().getPath())
+                );
+
+                mergedContent.clear();
+                int logicalPosition = 0;
+
                 JFrame diffFrame = new JFrame("Differences");
                 diffFrame.setSize(800, 600);
                 diffFrame.setLayout(new BorderLayout());
@@ -115,30 +129,28 @@ public class UserInterface extends JFrame {
                 diffPanel.setLayout(new BoxLayout(diffPanel, BoxLayout.Y_AXIS));
 
                 for (AbstractDelta<String> delta : patch.getDeltas()) {
-                    JPanel deltaPanel = new JPanel();
-                    deltaPanel.setLayout(new BoxLayout(deltaPanel, BoxLayout.Y_AXIS));
+                    int startPosition = delta.getSource().getPosition();
 
-                    JLabel changeLabel = new JLabel("Change at line " + (delta.getSource().getPosition() + 1));
-                    deltaPanel.add(changeLabel);
-
-                    for (String line : delta.getSource().getLines()) {
-                        JLabel sourceLine = new JLabel("- " + line);
-                        sourceLine.setForeground(Color.RED);
-                        deltaPanel.add(sourceLine);
+                    if (logicalPosition < startPosition) {
+                        mergedContent.addAll(lines1.subList(logicalPosition, startPosition));
                     }
 
-                    for (String line : delta.getTarget().getLines()) {
-                        JLabel targetLine = new JLabel("+ " + line);
-                        targetLine.setForeground(Color.GREEN);
-                        deltaPanel.add(targetLine);
-                    }
+                    logicalPosition = startPosition + delta.getSource().size();
 
+                    JPanel deltaPanel = createDeltaPanel(delta, startPosition);
                     diffPanel.add(deltaPanel);
                 }
 
+                if (logicalPosition < lines1.size()) {
+                    mergedContent.addAll(lines1.subList(logicalPosition, lines1.size()));
+                }
+
+                JButton saveButton = new JButton("Save Output File");
+                saveButton.addActionListener(new SaveOutputFileActionListener());
+                diffPanel.add(saveButton);
+
                 JScrollPane scrollPane = new JScrollPane(diffPanel);
                 diffFrame.add(scrollPane, BorderLayout.CENTER);
-
                 diffFrame.setVisible(true);
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -146,5 +158,120 @@ public class UserInterface extends JFrame {
         }
     }
 
+    private JPanel createDeltaPanel(AbstractDelta<String> delta, int startPosition) {
+        JPanel deltaPanel = new JPanel();
+        deltaPanel.setLayout(new BoxLayout(deltaPanel, BoxLayout.Y_AXIS));
 
+        JLabel changeLabel = new JLabel("Change at line " + (startPosition + 1));
+        deltaPanel.add(changeLabel);
+
+        for (String line : delta.getSource().getLines()) {
+            JPanel sourcePanel = new JPanel(new BorderLayout());
+            JLabel sourceLine = new JLabel("- " + line);
+            sourceLine.setForeground(Color.RED);
+
+            JButton sourceButton = new JButton("Keep");
+            sourceButton.addActionListener(e -> {
+                if (startPosition <= mergedContent.size()) {
+                    mergedContent.add(startPosition, line);
+                } else {
+                    mergedContent.add(line);
+                }
+                updateMergedContent();
+            });
+
+            sourcePanel.add(sourceLine, BorderLayout.CENTER);
+            sourcePanel.add(sourceButton, BorderLayout.EAST);
+            deltaPanel.add(sourcePanel);
+        }
+
+        for (String line : delta.getTarget().getLines()) {
+            JPanel targetPanel = new JPanel(new BorderLayout());
+            JLabel targetLine = new JLabel("+ " + line);
+            targetLine.setForeground(Color.GREEN);
+
+            JButton targetButton = new JButton("Keep");
+            targetButton.addActionListener(e -> {
+                if (startPosition <= mergedContent.size()) {
+                    mergedContent.add(startPosition, line);
+                } else {
+                    mergedContent.add(line);
+                }
+                updateMergedContent();
+            });
+
+            targetPanel.add(targetLine, BorderLayout.CENTER);
+            targetPanel.add(targetButton, BorderLayout.EAST);
+            deltaPanel.add(targetPanel);
+        }
+
+        return deltaPanel;
+    }
+
+    private void updateMergedContent() {
+        // Remove duplicates and sort the merged content
+        Set<String> uniqueLines = new LinkedHashSet<>(mergedContent);
+        mergedContent.clear();
+        mergedContent.addAll(uniqueLines);
+        Collections.sort(mergedContent);
+    }
+
+
+    private class KeepSourceActionListener implements ActionListener {
+        private final String line;
+        private final int logicalPosition;
+
+        public KeepSourceActionListener(String line, int logicalPosition) {
+            this.line = line;
+            this.logicalPosition = logicalPosition;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (logicalPosition <= mergedContent.size()) {
+                mergedContent.add(logicalPosition, line);
+            } else {
+                mergedContent.add(line);
+            }
+        }
+    }
+
+    private class KeepTargetActionListener implements ActionListener {
+        private final String line;
+        private final int logicalPosition;
+
+        public KeepTargetActionListener(String line, int logicalPosition) {
+            this.line = line;
+            this.logicalPosition = logicalPosition;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (logicalPosition <= mergedContent.size()) {
+                mergedContent.add(logicalPosition, line);
+            } else {
+                mergedContent.add(line);
+            }
+        }
+    }
+
+
+
+    private class SaveOutputFileActionListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Text Files", "txt"));
+            int returnValue = fileChooser.showSaveDialog(null);
+            if (returnValue == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                try {
+                    java.nio.file.Files.write(file.toPath(), mergedContent);
+                    JOptionPane.showMessageDialog(null, "File saved successfully!");
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+    }
 }
