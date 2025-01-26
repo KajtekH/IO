@@ -122,7 +122,6 @@ public class UserInterface extends JFrame {
             try {
                 long startTime = System.nanoTime();
                 Runtime runtime = Runtime.getRuntime();
-                runtime.gc();
                 long memoryUsedBefore = runtime.totalMemory() - runtime.freeMemory();
                 
                 comparisonSystem.compareFiles();
