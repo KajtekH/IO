@@ -120,13 +120,27 @@ public class UserInterface extends JFrame {
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
+                long startTime = System.nanoTime();
+                Runtime runtime = Runtime.getRuntime();
+                
                 comparisonSystem.compareFiles();
                 Patch<String> patch = comparisonSystem.getDifferences();
 
                 List<String> lines1 = java.nio.file.Files.readAllLines(
                         java.nio.file.Path.of(comparisonSystem.getInputFile1().getPath())
                 );
-
+                
+                long endTime = System.nanoTime();
+                
+                long elapsedTimeMillis = (endTime - startTime) / 1_000_000;
+                
+                JOptionPane.showMessageDialog(
+                    null,
+                    "Time: " + elapsedTimeMillis + " ms\n",
+                    "Informations",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+                
                 mergedContent.clear();
                 int logicalPosition = 0;
 
@@ -134,10 +148,15 @@ public class UserInterface extends JFrame {
                 diffFrame.setSize(800, 600);
                 diffFrame.setLayout(new BorderLayout(10, 10));
                 diffFrame.setLocationRelativeTo(null);
-
+                
                 JPanel diffPanel = new JPanel();
                 diffPanel.setLayout(new BoxLayout(diffPanel, BoxLayout.Y_AXIS));
-
+                
+                JButton editButton = new JButton("Edit manually");
+                editButton.setToolTipText("Edit file manually");
+                editButton.addActionListener(new EditManuallyFileActionListener());
+                diffPanel.add(editButton);
+                
                 for (AbstractDelta<String> delta : patch.getDeltas()) {
                     int startPosition = delta.getSource().getPosition();
 
@@ -251,6 +270,40 @@ public class UserInterface extends JFrame {
                     ex.printStackTrace();
                 }
             }
+        }
+    }
+    
+    private class EditManuallyFileActionListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            JFrame editFrame = new JFrame("Edit Merged Content");
+            editFrame.setSize(800, 600);
+            editFrame.setLayout(new BorderLayout(10, 10));
+            editFrame.setLocationRelativeTo(null);
+
+            JTextArea textArea = new JTextArea(String.join("\n", mergedContent));
+            JScrollPane scrollPane = new JScrollPane(textArea);
+
+            JPanel buttonPanel = new JPanel();
+            JButton saveButton = new JButton("Save Changes");
+            JButton cancelButton = new JButton("Cancel");
+
+            saveButton.addActionListener(e1 -> {
+                mergedContent.clear();
+                mergedContent.addAll(Arrays.asList(textArea.getText().split("\n")));
+                JOptionPane.showMessageDialog(editFrame, "Changes saved successfully!");
+                editFrame.dispose();
+            });
+
+            cancelButton.addActionListener(e1 -> editFrame.dispose());
+
+            buttonPanel.add(saveButton);
+            buttonPanel.add(cancelButton);
+
+            editFrame.add(scrollPane, BorderLayout.CENTER);
+            editFrame.add(buttonPanel, BorderLayout.SOUTH);
+
+            editFrame.setVisible(true);
         }
     }
 }
