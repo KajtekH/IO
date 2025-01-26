@@ -52,4 +52,21 @@ public class InputFileTests {
             fail("Wrong data provided");
         }
     }
+
+    @ParameterizedTest
+    @NullSource
+    @EmptySource
+    public void TestWrongSetPath(String candidate)
+    {
+        try
+        {
+            InputFile inputFile = new InputFile("Initial.txt");
+            inputFile.setPath(candidate);
+            fail("Wrong data provided");
+        }
+        catch(IllegalArgumentException e)
+        {
+
+        }
+    }
 }
