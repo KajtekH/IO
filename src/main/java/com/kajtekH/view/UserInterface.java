@@ -120,13 +120,32 @@ public class UserInterface extends JFrame {
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
+                long startTime = System.nanoTime();
+                Runtime runtime = Runtime.getRuntime();
+                runtime.gc();
+                long memoryUsedBefore = runtime.totalMemory() - runtime.freeMemory();
+                
                 comparisonSystem.compareFiles();
                 Patch<String> patch = comparisonSystem.getDifferences();
 
                 List<String> lines1 = java.nio.file.Files.readAllLines(
                         java.nio.file.Path.of(comparisonSystem.getInputFile1().getPath())
                 );
-
+                
+                long endTime = System.nanoTime();
+                long memoryUsedAfter = runtime.totalMemory() - runtime.freeMemory();
+                
+                long elapsedTimeMillis = (endTime - startTime) / 1_000_000;
+                long memoryUsedBytes = memoryUsedAfter - memoryUsedBefore;
+                
+                JOptionPane.showMessageDialog(
+                    null,
+                    "Time: " + elapsedTimeMillis + " ms\n" +
+                    "Memory: " + memoryUsedBytes / 1024 + " kB",
+                    "Informations",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+                
                 mergedContent.clear();
                 int logicalPosition = 0;
 
