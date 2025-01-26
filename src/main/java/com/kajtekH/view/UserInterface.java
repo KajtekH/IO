@@ -122,7 +122,6 @@ public class UserInterface extends JFrame {
             try {
                 long startTime = System.nanoTime();
                 Runtime runtime = Runtime.getRuntime();
-                long memoryUsedBefore = runtime.totalMemory() - runtime.freeMemory();
                 
                 comparisonSystem.compareFiles();
                 Patch<String> patch = comparisonSystem.getDifferences();
@@ -132,15 +131,12 @@ public class UserInterface extends JFrame {
                 );
                 
                 long endTime = System.nanoTime();
-                long memoryUsedAfter = runtime.totalMemory() - runtime.freeMemory();
                 
                 long elapsedTimeMillis = (endTime - startTime) / 1_000_000;
-                long memoryUsedBytes = memoryUsedAfter - memoryUsedBefore;
                 
                 JOptionPane.showMessageDialog(
                     null,
-                    "Time: " + elapsedTimeMillis + " ms\n" +
-                    "Memory: " + memoryUsedBytes / 1024 + " kB",
+                    "Time: " + elapsedTimeMillis + " ms\n",
                     "Informations",
                     JOptionPane.INFORMATION_MESSAGE
                 );
